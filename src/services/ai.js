@@ -1,397 +1,188 @@
-import { useToastStore } from '../store/toastStore';
-
-let currentModel = 'groq'; // 'groq' or 'gemini'
-
-export const setAIModel = (model) => {
-  currentModel = model;
-  console.log(`EduMesh AI Switched to: ${model}`);
-};
-
-export const getAIModel = () => currentModel;
+import { supabase } from '../lib/supabase';
+import { useAuthStore } from '../store/authStore';
 
 /**
- * Unified AI call router with Heartbeat Stabilization
+ * Unified AI service client.
+ * Calls the Supabase Edge Function `ai-router` instead of the local Express proxy.
  */
-async function callAI(messages, temperature = 0.7, maxTokens = 2048, onToken = null) {
-  const endpoint = currentModel === 'gemini' ? '/api/gemini' : '/api/chat';
-  
-  try {
-    const res = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        messages,
-        model: currentModel === 'groq' ? 'llama-3.1-8b-instant' : 'gemini-1.5-flash',
-        temperature,
-        max_tokens: maxTokens,
-        stream: true, // Always stream to keep connection alive (prevent 504)
-      }),
-    });
+export async function callAIRouter({ task, prompt, context = {}, imageBase64 = null }) {
+ const { user } = useAuthStore.getState();
+ 
+ // Prepare student profile context
+ const studentProfile = {
+ name: user?.display_name || user?.email?.split('@')[0] || 'Student',
+ grade: '12', // Would fetch from DB ideally
+ examTarget: 'JEE Main',
+ weakTopics: 'none',
+ };
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      console.error(`${currentModel} API Error:`, err);
-      const msg = err.error || err.message || `API error (${res.status})`;
-      if (res.status === 429) {
-        useToastStore.getState().addToast('API Rate limit reached.', 'warning');
-      }
-      return `❌ ${msg}`;
-    }
+ try {
+ // Call Supabase Edge Function
+ const { data, error } = await supabase.functions.invoke('ai-router', {
+ body: {
+ task,
+ prompt,
+ context,
+ studentProfile,
+ imageBase64
+ }
+ });
 
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let accumulated = '';
-    let remainder = ''; // Buffer for partial lines across chunks
+ if (error) {
+ console.error('Edge function error:', error);
+ throw error;
+ }
 
-    while (true) {
-      const { done, value } = await reader.read();
-      
-      const chunk = decoder.decode(value || new Uint8Array(), { stream: !done });
-      const currentText = remainder + chunk;
-      const lines = currentText.split('\n');
-      
-      // Last element might be incomplete, save for next iteration
-      remainder = lines.pop() || '';
-      
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed || !trimmed.startsWith('data: ')) continue;
-        
-        const data = trimmed.replace('data: ', '').trim();
-        if (data === '[DONE]') break;
-        
-        try {
-          const parsed = JSON.parse(data);
-          const token = parsed.choices?.[0]?.delta?.content || "";
-          if (token) {
-            accumulated += token;
-            if (onToken) onToken(accumulated);
-          }
-        } catch (e) {
-          // Skip malformed tokens silently
-        }
-      }
-
-      if (done) break;
-    }
-
-    // Process any leftover content in remainder if it contains a data line
-    if (remainder.trim().startsWith('data: ')) {
-      const data = remainder.trim().replace('data: ', '').trim();
-      if (data !== '[DONE]') {
-        try {
-          const parsed = JSON.parse(data);
-          const token = parsed.choices?.[0]?.delta?.content || "";
-          if (token) {
-            accumulated += token;
-            if (onToken) onToken(accumulated);
-          }
-        } catch (e) {}
-      }
-    }
-
-    return accumulated.trim() || "No response generated.";
-  } catch (error) {
-    console.error(`${currentModel} Error:`, error);
-    return "❌ Connection timeout. Please try again.";
-  }
+ return data.text;
+ } catch (err) {
+ console.error('AI Router Error:', err);
+ 
+ // Fallback logic for local development if Edge Function isn't deployed yet
+ console.warn("Falling back to local development proxy...");
+ return await fallbackLocalAI(prompt);
+ }
 }
 
 /**
- * Send a chat message with conversation memory.
+ * Fallback to the local dev server proxy if the Edge Function fails or isn't deployed
  */
-export async function sendChatMessage(message, externalHistory = [], onToken = null) {
-  const formattedHistory = externalHistory.map(msg => ({
-    role: msg.role === 'ai' ? 'assistant' : 'user',
-    content: msg.text
-  }));
-
-  const messages = [
-    {
-      role: 'system',
-      content: 'You are EduMesh AI — a friendly, helpful study tutor. Answer clearly with markdown formatting.'
-    },
-    ...formattedHistory.slice(-10),
-    { role: 'user', content: message }
-  ];
-
-  return await callAI(messages, 0.7, 2048, onToken);
+async function fallbackLocalAI(prompt) {
+ try {
+ const res = await fetch('/api/chat', {
+ method: 'POST',
+ headers: { 'Content-Type': 'application/json' },
+ body: JSON.stringify({
+ messages: [
+ { role: 'system', content: 'You are Arya, EduMesh AI tutor. Answer cleanly.' },
+ { role: 'user', content: prompt }
+ ],
+ model: 'llama-3.1-8b-instant',
+ temperature: 0.7,
+ stream: false,
+ }),
+ });
+ 
+ if (!res.ok) throw new Error('Local fallback failed');
+ const data = await res.json();
+ return data.choices?.[0]?.message?.content || "No response generated.";
+ } catch (error) {
+ return "❌ I'm currently offline. Please ensure the backend is running.";
+ }
 }
 
-/**
- * Generate structural JSON map nodes for the Mind Tree.
- */
-export async function generateMindTree(topic) {
-  const messages = [
-    {
-      role: 'system',
-      content: 'You are a graph node builder. You ONLY output valid JSON arrays. Do not return markdown, just raw JSON.'
-    },
-    {
-      role: 'user',
-      content: `Construct a Mind Map for the topic: "${topic}". 
-Return exactly a valid JSON array of node objects. Each object MUST have:
-- "id": unique string identifier (e.g. "root", "n1", "n2")
-- "label": short, punchy title for the node concept
-- "parentId": the id of the parent node (use null for the root node)
+// ---------------------------------------------------------
+// Feature-Specific Wrapper Functions
+// ---------------------------------------------------------
 
-Include exactly 7-10 nodes branching logically from the root topic. Return ONLY the JSON.`
-    }
-  ];
-
-  const reply = await callAI(messages, 0.4, 3000);
-
-  try {
-    const cleaned = reply.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    return JSON.parse(cleaned);
-  } catch (error) {
-    console.error('MindTree parse error:', error, 'Raw:', reply);
-    return null;
-  }
+export async function sendAryaDoubt(message, subjectContext = 'General') {
+ return await callAIRouter({
+ task: 'DOUBT_TEXT',
+ prompt: message,
+ context: { subject: subjectContext }
+ });
 }
 
-/**
- * Generate structured study notes for a topic.
- */
+export async function generateQuiz(subject, topic, numQuestions = 5) {
+ const prompt = `Generate exactly ${numQuestions} multiple-choice quiz questions for ${subject}: ${topic}. Return ONLY a valid JSON array where each object has: "question", "options" (array of 4 strings), "correctIndex" (0-3), and "explanation". No markdown block formatting around the JSON, just the raw JSON.`;
+ 
+ const reply = await callAIRouter({ task: 'QUIZ_GENERATE', prompt });
+ try {
+ const cleaned = reply.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+ return JSON.parse(cleaned);
+ } catch (e) {
+ console.error("Quiz parsing error:", e);
+ return null;
+ }
+}
+
 export async function generateStudyNotes(subject, topic) {
-  const messages = [
-    {
-      role: 'system',
-      content: 'You are an expert tutor who creates clear, well-structured study notes for college students. Use markdown formatting.'
-    },
-    {
-      role: 'user',
-      content: `Generate comprehensive study notes on:
-
-Subject: ${subject}
-Topic: ${topic}
-
-Format with these sections (use markdown):
-
-## 📌 Summary
-A brief 2-3 sentence overview of the topic.
-
-## 📖 Key Concepts
-Explain the main concepts clearly with bullet points.
-
-## 💡 Important Points to Remember
-List the most critical things to remember.
-
-## 📝 Examples
-Provide 2-3 practical examples with explanations.
-
-## 🔗 How It Connects
-Briefly explain how this topic connects to other concepts in ${subject}.
-
-Keep the language simple and clear. Use analogies where helpful.`
-    }
-  ];
-
-  return await callAI(messages, 0.5, 3000);
+ const prompt = `Generate comprehensive study notes for ${subject}: ${topic}. Use markdown. Include a Summary, Key Concepts, Important Formulas, and Examples.`;
+ return await callAIRouter({ task: 'NOTES', prompt, context: { subject, chapter: topic } });
 }
 
-/**
- * Generate MCQ quiz questions for a topic.
- * Accepts an optional difficulty hint based on adaptive logic.
- */
-export async function generateQuiz(subject, topic, numQuestions = 5, difficultyHint = '') {
-  const messages = [
-    {
-      role: 'system',
-      content: 'You are a quiz generator. You ONLY return valid JSON arrays. No markdown, no explanations, just pure JSON.'
-    },
-    {
-      role: 'user',
-      content: `Generate exactly ${numQuestions} multiple-choice quiz questions for a college student on:
+// ---------------------------------------------------------
+// Legacy Feature Wrappers (for backward compatibility)
+// ---------------------------------------------------------
 
-Subject: ${subject}
-Topic: ${topic}
-${difficultyHint ? `\nDifficulty instruction: ${difficultyHint}` : ''}
-
-Return ONLY a valid JSON array. Each object must have:
-- "question": the question text
-- "options": array of exactly 4 option strings
-- "correctIndex": index of the correct option (0-3)
-- "explanation": brief explanation of why the answer is correct
-
-Return ONLY the JSON array, nothing else.`
-    }
-  ];
-
-  const reply = await callAI(messages, 0.3, 3000);
-
-  try {
-    const cleaned = reply.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    return JSON.parse(cleaned);
-  } catch (error) {
-    console.error('Quiz parse error:', error, 'Raw:', reply);
-    return null;
-  }
+export async function sendChatMessage(message, externalHistory = []) {
+ const historyText = externalHistory.map(m => `${m.role}: ${m.text}`).join('\n');
+ const prompt = `History:\n${historyText}\nUser: ${message}`;
+ return await callAIRouter({ task: 'CHAT', prompt });
 }
 
-/**
- * Generate flashcards from study notes content.
- */
+export async function sendChatWithDocument(message, documentText, externalHistory = []) {
+ const prompt = `Document Context:\n${documentText.slice(0, 5000)}\nUser: ${message}`;
+ return await callAIRouter({ task: 'CHAT', prompt });
+}
+
+export async function generateMindTree(topic) {
+ const prompt = `Construct a Mind Map for the topic: "${topic}". Return exactly a valid JSON array of node objects. Each object MUST have: "id", "label", "parentId". Limit to 7-10 nodes. ONLY JSON.`;
+ const reply = await callAIRouter({ task: 'CHAT', prompt });
+ try { return JSON.parse(reply.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()); } 
+ catch (e) { return null; }
+}
+
 export async function generateFlashcards(content, subject, topic) {
-  const messages = [
-    {
-      role: 'system',
-      content: 'You are a flashcard generator. You ONLY return valid JSON arrays. No markdown wrapping.'
-    },
-    {
-      role: 'user',
-      content: `From the following study notes, extract 8-12 key term/concept flashcards.
-
-Subject: ${subject}
-Topic: ${topic}
-Notes content:
-${content.slice(0, 3000)}
-
-Return ONLY a valid JSON array where each object has:
-- "front": the term, concept, or question (short)
-- "back": the definition, explanation, or answer (1-3 sentences)
-
-Return ONLY the JSON array.`
-    }
-  ];
-
-  const reply = await callAI(messages, 0.3, 2000);
-
-  try {
-    const cleaned = reply.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    return JSON.parse(cleaned);
-  } catch (error) {
-    console.error('Flashcard parse error:', error, 'Raw:', reply);
-    return null;
-  }
+ const prompt = `From these notes on ${subject}: ${topic}, extract 8-12 key flashcards. Return ONLY a valid JSON array with "front" and "back".\nNotes: ${content.slice(0, 3000)}`;
+ const reply = await callAIRouter({ task: 'CHAT', prompt });
+ try { return JSON.parse(reply.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()); } 
+ catch (e) { return null; }
 }
 
-/**
- * Feynman mode — AI acts as a confused student.
- */
 export async function sendFeynmanMessage(topic, conversationHistory = []) {
-  const messages = [
-    {
-      role: 'system',
-      content: `You are a confused student who is trying to understand "${topic}". You ask probing, thoughtful questions that test the teacher's understanding. You identify gaps in their explanation. Be curious but also challenge vague explanations. Ask "why does that happen?", "can you give an example?", "I don't get the connection between X and Y". Keep responses to 2-3 sentences max. Never break character.`
-    },
-    ...conversationHistory.map(msg => ({
-      role: msg.role === 'ai' ? 'assistant' : 'user',
-      content: msg.text
-    }))
-  ];
-
-  return await callAI(messages, 0.7, 512);
+ const historyText = conversationHistory.map(m => `${m.role}: ${m.text}`).join('\n');
+ const prompt = `You are a confused student trying to understand "${topic}". Be curious, challenge vague explanations. Ask probing questions. Keep it short.\n\nConversation so far:\n${historyText}\nStudent:`;
+ return await callAIRouter({ task: 'CHAT', prompt });
 }
 
-/**
- * Score a Feynman teaching session.
- */
 export async function scoreFeynmanSession(topic, exchanges) {
-  const transcript = exchanges.map(e => `${e.role === 'user' ? 'Teacher' : 'Student'}: ${e.text}`).join('\n');
-
-  const messages = [
-    {
-      role: 'system',
-      content: 'You are an education assessment expert. Analyze the teaching session and return ONLY valid JSON.'
-    },
-    {
-      role: 'user',
-      content: `Assess this teaching session where someone tried to explain "${topic}" to a confused student.
-
-Transcript:
-${transcript}
-
-Return ONLY a valid JSON object (no markdown) with:
-{
-  "feynman_score": <0-100>,
-  "strong_concepts": ["concept1", "concept2"],
-  "weak_concepts": ["concept1", "concept2"],
-  "feedback": "2-3 sentences of constructive feedback"
-}`
-    }
-  ];
-
-  const reply = await callAI(messages, 0.3, 1024);
-
-  try {
-    const cleaned = reply.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    return JSON.parse(cleaned);
-  } catch (error) {
-    console.error('Feynman score parse error:', error);
-    return { feynman_score: 50, strong_concepts: [], weak_concepts: [], feedback: 'Could not parse assessment.' };
-  }
+ const transcript = exchanges.map(e => `${e.role === 'user' ? 'Teacher' : 'Student'}: ${e.text}`).join('\n');
+ const prompt = `Assess this teaching session on "${topic}". Return ONLY valid JSON with: "feynman_score" (0-100), "strong_concepts" (array), "weak_concepts" (array), "feedback".\nTranscript:\n${transcript}`;
+ const reply = await callAIRouter({ task: 'CHAT', prompt });
+ try { return JSON.parse(reply.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()); } 
+ catch (e) { return { feynman_score: 50, strong_concepts: [], weak_concepts: [], feedback: "Assessment failed." }; }
 }
 
-/**
- * Generate a cram plan for panic mode.
- */
 export async function generateCramPlan(subject, weakTopics) {
-  const messages = [
-    {
-      role: 'system',
-      content: 'You are an exam preparation expert. Create a focused, actionable cram plan.'
-    },
-    {
-      role: 'user',
-      content: `Create a cram plan for ${subject}. The student's 5 weakest topics are:
-${weakTopics.map((t, i) => `${i + 1}. ${t}`).join('\n')}
-
-Provide a markdown-formatted plan with:
-- Priority order to study
-- Key formula/concept to memorize for each
-- Time allocation suggestion (assuming 6 hours total)
-- Quick tips for each topic`
-    }
-  ];
-
-  return await callAI(messages, 0.5, 2000);
+ const prompt = `Create a cram plan for ${subject}. Weak topics: ${weakTopics.join(', ')}. Use markdown.`;
+ return await callAIRouter({ task: 'CHAT', prompt });
 }
 
-/**
- * Generate a 1-page cheat sheet.
- */
 export async function generateCheatSheet(subject, notesContent) {
-  const messages = [
-    {
-      role: 'system',
-      content: 'You are a study material compressor. Create ultra-concise cheat sheets.'
-    },
-    {
-      role: 'user',
-      content: `Compress all of the following ${subject} notes into a single-page cheat sheet. Use bullets, abbreviations, and formulas. Maximum 500 words.
-
-Notes:
-${notesContent.slice(0, 6000)}`
-    }
-  ];
-
-  return await callAI(messages, 0.3, 1500);
+ const prompt = `Compress these ${subject} notes into a single-page cheat sheet. Use bullets and formulas. Max 500 words.\nNotes: ${notesContent.slice(0, 6000)}`;
+ return await callAIRouter({ task: 'CHAT', prompt });
 }
 
-/**
- * Chat with document context.
- */
-export async function sendChatWithDocument(message, documentText, externalHistory = [], onToken = null) {
-  const formattedHistory = externalHistory.map(msg => ({
-    role: msg.role === 'ai' ? 'assistant' : 'user',
-    content: msg.text
-  }));
+// ---------------------------------------------------------
+// v2.5 Feature Wrappers
+// ---------------------------------------------------------
 
-  const messages = [
-    {
-      role: 'system',
-      content: `You are EduMesh AI — a study tutor. The student has uploaded a document. Use it as context for your answers. Here is the document content:
-
---- DOCUMENT START ---
-${documentText.slice(0, 8000)}
---- DOCUMENT END ---
-
-Answer questions based on this document. Use markdown formatting. Be concise but thorough.`
-    },
-    ...formattedHistory.slice(-16),
-    { role: 'user', content: message }
-  ];
-
-  return await callAI(messages, 0.7, 2048, onToken);
+export async function analyzeMockTest(testData) {
+ const prompt = `Analyze this mock test performance: ${JSON.stringify(testData)}. Identify weak areas, time management issues, and suggest a 3-day recovery plan.`;
+ return await callAIRouter({ task: 'MOCK_ANALYSIS', prompt, context: { complexity: 'high' } });
 }
+
+export async function generateStudyPlan(studentProfile) {
+ const prompt = `Generate a personalized study plan for ${studentProfile.examTarget}. Subjects: ${studentProfile.subjects.join(', ')}. Daily hours: ${studentProfile.dailyHours}. Target date: ${studentProfile.examDate}. Give week-by-week milestones.`;
+ return await callAIRouter({ task: 'STUDY_PLAN', prompt });
+}
+
+export async function analyzePYQPatterns(subject, yearRange) {
+ const prompt = `Analyze previous year question patterns for ${subject} from ${yearRange}. Which topics carry the highest weightage? What are the most repeated concepts?`;
+ return await callAIRouter({ task: 'PYQ_PATTERN', prompt, context: { complexity: 'high', subject } });
+}
+
+export async function handleImageDoubt(promptText, imageBase64) {
+ return await callAIRouter({ 
+ task: 'DOUBT_IMAGE', 
+ prompt: promptText || "Explain this image step by step.", 
+ imageBase64 
+ });
+}
+
+export async function generateFormulas(subject, chapter) {
+ const prompt = `Generate a comprehensive list of all mathematical/scientific formulas for ${subject} - ${chapter}. Format beautifully with Markdown and LaTeX.`;
+ return await callAIRouter({ task: 'FORMULA', prompt, context: { subject, chapter } });
+}
+
+

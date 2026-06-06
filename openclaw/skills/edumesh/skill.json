@@ -1,0 +1,31 @@
+{
+  "id": "edumesh_arya",
+  "name": "EduMesh Arya Tutor",
+  "description": "Connects WhatsApp/Telegram to your EduMesh Arya AI tutor for on-the-go learning, doubt solving, and PYQ practice.",
+  "version": "1.0.0",
+  "author": "EduMesh",
+  "triggers": [
+    {
+      "type": "message_pattern",
+      "pattern": "^/(doubt|quiz|plan|note)(?:\\s+(.+))?",
+      "description": "Handle specific EduMesh commands."
+    },
+    {
+      "type": "message_fallback",
+      "description": "Handles natural language queries sent directly to the bot."
+    }
+  ],
+  "configuration": {
+    "edumesh_api_key": {
+      "type": "string",
+      "description": "Your EduMesh integration API key (found in Settings)",
+      "required": true
+    },
+    "edumesh_url": {
+      "type": "string",
+      "description": "URL of your EduMesh instance (e.g. https://edu-mesh.vercel.app)",
+      "required": false,
+      "default": "https://edu-mesh.vercel.app"
+    }
+  }
+}

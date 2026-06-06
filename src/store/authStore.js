@@ -2,104 +2,121 @@ import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 
 export const useAuthStore = create((set, get) => ({
-  user: null,
-  isAuthenticated: false,
-  isLoading: false,
-  isInitializing: true,
-  error: null,
-  isDemoUser: false,
+ user: null,
+ isAuthenticated: false,
+ isLoading: false,
+ isInitializing: true,
+ error: null,
+ isDemoUser: false,
+ onboardingComplete: false,
+ studentProfile: {
+ examTarget: '',
+ subjects: [],
+ dailyHours: 2,
+ examDate: null,
+ },
 
-  initializeAuth: () => {
-    // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth event:', event);
-      if (session?.user) {
-        const user = {
-          id: session.user.id,
-          email: session.user.email,
-          display_name: session.user.user_metadata?.full_name || session.user.email,
-          avatar_url: session.user.user_metadata?.avatar_url
-        };
-        
-        set({
-          user,
-          isAuthenticated: true,
-          isInitializing: false,
-        });
+ updateStudentProfile: (updates) => set((state) => ({
+ studentProfile: { ...state.studentProfile, ...updates }
+ })),
 
-        // Sync with MongoDB for scaling 1000+ members
-        try {
-          await fetch('/api/auth/callback', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ syncOnly: true, user })
-          });
-        } catch (e) {
-          console.warn('MongoDB sync failed, but user is authenticated via Supabase');
-        }
+ completeOnboarding: () => set({ onboardingComplete: true }),
 
-      } else {
-        set({ user: null, isAuthenticated: false, isInitializing: false });
-      }
-    });
+ initializeAuth: () => {
+ // Listen for auth state changes
+ const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+ console.log('Auth event:', event);
+ if (session?.user) {
+ const user = {
+ id: session.user.id,
+ email: session.user.email,
+ display_name: session.user.user_metadata?.full_name || session.user.email,
+ avatar_url: session.user.user_metadata?.avatar_url
+ };
+ 
+ set({
+ user,
+ isAuthenticated: true,
+ isInitializing: false,
+ // Simulated check - in reality, fetch this from MongoDB/Supabase
+ onboardingComplete: session.user.user_metadata?.onboardingComplete || false,
+ });
 
-    return () => subscription.unsubscribe();
-  },
+ // Sync with MongoDB for scaling 1000+ members
+ try {
+ await fetch('/api/auth/callback', {
+ method: 'POST',
+ headers: { 'Content-Type': 'application/json' },
+ body: JSON.stringify({ syncOnly: true, user })
+ });
+ } catch (e) {
+ console.warn('MongoDB sync failed, but user is authenticated via Supabase');
+ }
 
-  signInWithGoogle: async () => {
-    set({ isLoading: true, error: null });
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: window.location.origin + '/auth/callback'
-      }
-    });
+ } else {
+ set({ user: null, isAuthenticated: false, isInitializing: false, onboardingComplete: false });
+ }
+ });
 
-    if (error) {
-      set({ error: error.message, isLoading: false });
-    }
-  },
+ return () => subscription.unsubscribe();
+ },
 
-  signInAsDemo: async () => {
-    set({ isLoading: true, error: null });
-    try {
-      await new Promise(r => setTimeout(r, 600));
+ signInWithGoogle: async () => {
+ set({ isLoading: true, error: null });
+ const { error } = await supabase.auth.signInWithOAuth({
+ provider: 'google',
+ options: {
+ redirectTo: window.location.origin + '/auth/callback'
+ }
+ });
 
-      const mockUser = {
-        id: 'demo-bypassed-user-000',
-        email: 'demo@edumesh.local',
-        display_name: 'Demo Researcher'
-      };
+ if (error) {
+ set({ error: error.message, isLoading: false });
+ }
+ },
 
-      set({ 
-        user: mockUser,
-        isAuthenticated: true, 
-        isDemoUser: true, 
-        isLoading: false 
-      });
+ signInAsDemo: async () => {
+ set({ isLoading: true, error: null });
+ try {
+ await new Promise(r => setTimeout(r, 600));
 
-      return { user: mockUser, error: null };
-    } catch (error) {
-      set({ error: error.message, isLoading: false });
-      return { user: null, error: error.message };
-    }
-  },
+ const mockUser = {
+ id: 'demo-bypassed-user-000',
+ email: 'demo@edumesh.local',
+ display_name: 'Demo Researcher'
+ };
 
-  signOut: async () => {
-    set({ isLoading: true, error: null });
-    try {
-      await supabase.auth.signOut();
-      
-      // Clear backend session cookie
-      document.cookie = "auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-      
-      set({ user: null, isAuthenticated: false, isLoading: false, isDemoUser: false });
-      return { error: null };
-    } catch (err) {
-      set({ error: err.message, isLoading: false });
-      return { error: err.message };
-    }
-  },
+ set({ 
+ user: mockUser,
+ isAuthenticated: true, 
+ isDemoUser: true, 
+ isLoading: false,
+ // Demo users can skip onboarding or test it
+ onboardingComplete: false 
+ });
 
-  clearError: () => set({ error: null }),
+ return { user: mockUser, error: null };
+ } catch (error) {
+ set({ error: error.message, isLoading: false });
+ return { user: null, error: error.message };
+ }
+ },
+
+ signOut: async () => {
+ set({ isLoading: true, error: null });
+ try {
+ await supabase.auth.signOut();
+ 
+ // Clear backend session cookie
+ document.cookie = "auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+ 
+ set({ user: null, isAuthenticated: false, isLoading: false, isDemoUser: false });
+ return { error: null };
+ } catch (err) {
+ set({ error: err.message, isLoading: false });
+ return { error: err.message };
+ }
+ },
+
+ clearError: () => set({ error: null }),
 }));

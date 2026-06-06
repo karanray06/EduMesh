@@ -1,75 +1,126 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
-import { Home, Bot, FileText, Brain, LogOut, Settings as SettingsIcon, Zap, Layers, Network, GitBranch } from 'lucide-react';
+import { NavLink, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
+import { useLayoutStore } from '../../store/layoutStore';
+import {
+ Home, Bot, BookOpen, Brain, LogOut, Settings as SettingsIcon,
+ Layers, Target, FileText, Calculator, CalendarDays,
+ Trophy, Zap, Network, GitBranch, X, GraduationCap,
+ Users, BarChart2, User
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
-const Sidebar = () => {
-  const { user, signOut } = useAuthStore();
-  const displayName = user?.user_metadata?.display_name || user?.email?.split('@')[0] || 'Student';
+const NAV_SECTIONS = [
+ {
+ label: 'LEARN',
+ items: [
+ { icon: Home, label: 'Dashboard', path: '/dashboard' },
+ { icon: Bot, label: 'AI Tutor', path: '/tutor' },
+ { icon: BookOpen, label: 'Subjects', path: '/subjects' },
+ { icon: Layers, label: 'Flashcards', path: '/flashcards' },
+ ],
+ },
+ {
+ label: 'ASSESS',
+ items: [
+ { icon: Target, label: 'Practice', path: '/practice' },
+ { icon: Brain, label: 'Mock Tests', path: '/mock-test' },
+ { icon: FileText, label: 'PYQ Bank', path: '/pyq' },
+ ],
+ },
+ {
+ label: 'PLAN',
+ items: [
+ { icon: CalendarDays, label: 'Study Plan', path: '/planner' },
+ { icon: FileText, label: 'Notes', path: '/notes' },
+ { icon: Calculator, label: 'Formula Vault', path: '/formulas' },
+ ],
+ },
+ {
+ label: 'MORE',
+ items: [
+ { icon: GraduationCap, label: 'Degree Hub', path: '/degree' },
+ { icon: BarChart2, label: 'Analytics', path: '/analytics' },
+ { icon: Users, label: 'Study Groups', path: '/groups' },
+ { icon: Zap, label: 'Feynman Mode', path: '/feynman' },
+ { icon: Network, label: 'Knowledge Graph', path: '/knowledge-graph' },
+ ],
+ },
+];
 
-  const navItems = [
-    { icon: Home, label: 'Dashboard', path: '/dashboard' },
-    { icon: Bot, label: 'AI Chat', path: '/chat' },
-    { icon: FileText, label: 'Notes', path: '/notes' },
-    { icon: Brain, label: 'Quiz', path: '/quiz' },
-    { icon: Zap, label: 'Feynman Mode', path: '/feynman' },
-    { icon: Layers, label: 'Flashcards', path: '/flashcards' },
-    { icon: Network, label: 'Knowledge graph', path: '/knowledge-graph' },
-    { icon: GitBranch, label: 'Visual Mind Tree', path: '/mindtree' },
-  ];
+export default function Sidebar() {
+ const { signOut } = useAuthStore();
+ const { sidebarOpen, closeSidebar } = useLayoutStore();
+ const location = useLocation();
 
-  return (
-    <div className="hidden sm:flex flex-col fixed left-0 top-[64px] bottom-0 w-[240px] z-40 bg-[rgba(242,240,255,0.88)] backdrop-blur-[20px] border-r border-[rgba(208,170,255,0.25)]">
-      <div className="flex-1 py-6 px-4 space-y-2">
-        {navItems.map((item, i) => (
-          <NavLink
-            key={i}
-            to={item.path}
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-4 py-3 rounded-[12px] w-full transition-all duration-200 relative overflow-hidden group ${
-                isActive 
-                  ? 'bg-gradient-to-br from-lavender to-periwinkle text-primary font-semibold' 
-                  : 'bg-transparent text-secondary hover:bg-[rgba(208,170,255,0.1)] hover:text-primary font-medium'
-              }`
-            }
-          >
-            {({ isActive }) => (
-              <>
-                {isActive && (
-                  <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-orchid"></div>
-                )}
-                <item.icon size={20} className={isActive ? 'text-primary' : 'text-inherit'} />
-                <span className="font-body text-[0.95rem]">{item.label}</span>
-              </>
-            )}
-          </NavLink>
-        ))}
-      </div>
+ return (
+ <>
+ {/* Mobile Backdrop */}
+ <AnimatePresence>
+ {sidebarOpen && (
+ <motion.div
+ initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+ onClick={closeSidebar}
+ className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
+ />
+ )}
+ </AnimatePresence>
 
-      <div className="p-4 border-t border-[rgba(208,170,255,0.25)] flex flex-col gap-2">
-        <NavLink
-          to="/settings"
-          className={({ isActive }) =>
-            `flex items-center gap-3 px-4 py-3 rounded-[12px] w-full transition-all duration-200 ${
-              isActive 
-                ? 'bg-[rgba(255,217,179,0.3)] text-primary font-semibold' 
-                : 'bg-transparent text-secondary hover:bg-[rgba(208,170,255,0.1)] hover:text-primary font-medium'
-            }`
-          }
-        >
-          <SettingsIcon size={20} />
-          <span className="font-body text-[0.95rem]">Settings</span>
-        </NavLink>
-        <button 
-          onClick={signOut}
-          className="flex items-center gap-3 px-4 py-3 rounded-[12px] w-full text-rose hover:bg-[rgba(255,176,176,0.15)] transition-colors duration-200"
-        >
-          <LogOut size={20} />
-          <span className="font-body font-medium text-[0.95rem]">Logout</span>
-        </button>
-      </div>
-    </div>
-  );
-};
+ <aside
+ className={`fixed top-0 left-0 h-screen w-[280px] bg-bg-surface/80 lg:bg-bg-primary/95 backdrop-blur-2xl border-r border-glass-border z-50 flex flex-col transition-transform duration-300 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} shadow-[0_4px_30px_rgba(0,0,0,0.5)] lg:shadow-none`}
+ >
+ <div className="h-[70px] flex items-center justify-between px-6 shrink-0 border-b border-glass-border">
+ <div className="flex items-center gap-2">
+ <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo to-cyan flex items-center justify-center text-white">✦</div>
+ <span className="font-display text-2xl font-bold text-white ml-1">EduMesh</span>
+ <span className="px-2 py-0.5 rounded-full bg-indigo/20 text-indigo-light text-[10px] font-bold border border-indigo/30">v2.5</span>
+ </div>
+ <button onClick={closeSidebar} className="lg:hidden p-2 text-text-secondary hover:text-white hover:bg-glass-hover rounded-lg">
+ <X size={20} />
+ </button>
+ </div>
 
-export default Sidebar;
+ <div className="flex-1 overflow-y-auto py-6 px-4 space-y-8 hide-scrollbar">
+ {NAV_SECTIONS.map((section, idx) => (
+ <div key={idx}>
+ <h3 className="px-3 mb-3 text-[11px] font-bold text-text-muted tracking-widest uppercase">{section.label}</h3>
+ <nav className="space-y-1">
+ {section.items.map((item) => {
+ const isActive = location.pathname.startsWith(item.path);
+ return (
+ <NavLink
+ key={item.path}
+ to={item.path}
+ onClick={() => window.innerWidth < 1024 && closeSidebar()}
+ className={`relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 group ${
+ isActive ? 'text-white' : 'text-text-secondary hover:text-white hover:bg-glass-hover'
+ }`}
+ >
+ {isActive && (
+ <motion.div layoutId="sidebar-active" className="absolute inset-0 bg-indigo/10 border border-indigo/20 rounded-xl" />
+ )}
+ <item.icon size={20} className={`relative z-10 transition-colors ${isActive ? 'text-indigo-light' : 'text-text-muted group-hover:text-indigo-light'}`} />
+ <span className="relative z-10">{item.label}</span>
+ </NavLink>
+ );
+ })}
+ </nav>
+ </div>
+ ))}
+ </div>
+
+ <div className="p-4 border-t border-glass-border bg-bg-primary/50 backdrop-blur-md">
+ <NavLink to="/profile" onClick={() => window.innerWidth < 1024 && closeSidebar()} className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-text-secondary hover:text-white hover:bg-glass-hover transition-colors mb-1">
+ <User size={20} className="text-text-muted" /> Profile
+ </NavLink>
+ <NavLink to="/settings" onClick={() => window.innerWidth < 1024 && closeSidebar()} className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-text-secondary hover:text-white hover:bg-glass-hover transition-colors mb-2">
+ <SettingsIcon size={20} className="text-text-muted" /> Settings
+ </NavLink>
+ <button onClick={signOut} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-pink hover:bg-pink/10 transition-colors">
+ <LogOut size={20} /> Logout
+ </button>
+ </div>
+ </aside>
+ </>
+ );
+}

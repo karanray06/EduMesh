@@ -3,24 +3,25 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="EduMesh — Your AI Research & Thinking Partner" />
-    <title>EduMesh — Synthesize Without Limits</title>
+    <meta name="description" content="EduMesh v2.5 — India's First Full-Lifecycle AI Learning OS. From Class 6 to JEE/NEET to Degree. Powered by 5 free AI models." />
+    <meta name="keywords" content="EduMesh, JEE preparation, NEET preparation, AI tutor, Indian education, study planner, mock tests, Class 6, B.Tech, BCA, BSc" />
+    <title>EduMesh — India's AI Learning OS</title>
     <link rel="manifest" href="/manifest.json" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Pacifico&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;900&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
   </head>
-  <body class="bg-page text-primary antialiased font-body selection:bg-lavender/30 selection:text-primary">
+  <body class="bg-[#05050E] text-white antialiased font-body">
     <script>
       window.onerror = function(message, source, lineno, colno, error) {
         document.body.innerHTML = `
-          <div style="background:#1a1a1a; color:#ff4d4d; padding:40px; font-family:monospace; height:100vh; overflow:auto;">
-            <h1 style="color:#ff8080">FATAL REACT ERROR</h1>
+          <div style="background:#05050E; color:#ff6b6b; padding:40px; font-family:'JetBrains Mono',monospace; height:100vh; overflow:auto;">
+            <h1 style="color:#818cf8; font-family:'Outfit',sans-serif;">EduMesh Error</h1>
             <p style="font-size:18px"><b>Message:</b> ${message}</p>
             <p><b>Source:</b> ${source}:${lineno}:${colno}</p>
-            <pre style="background:#000; padding:20px; border-radius:8px; margin-top:20px; border:1px solid #333">${error ? error.stack : 'No stack trace'}</pre>
-            <button onclick="window.location.reload()" style="background:#333; color:white; border:none; padding:10px 20px; border-radius:4px; cursor:pointer; margin-top:20px;">Retry</button>
+            <pre style="background:#0C0C1E; padding:20px; border-radius:12px; margin-top:20px; border:1px solid rgba(255,255,255,0.07); color:#94A3B8">${error ? error.stack : 'No stack trace'}</pre>
+            <button onclick="window.location.reload()" style="background:linear-gradient(135deg,#4F46E5,#7C3AED); color:#fff; border:none; padding:12px 28px; border-radius:100px; cursor:pointer; margin-top:20px; font-weight:600; font-family:'Outfit',sans-serif;">Retry</button>
           </div>
         `;
       };

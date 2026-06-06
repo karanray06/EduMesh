@@ -1,480 +1,418 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Menu, ArrowRight, Sparkles, Send, Brain, BookOpen, Download, BarChart2, Star, Code } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import AnimatedBackground from '../components/layout/AnimatedBackground';
+import React, { useState, useEffect, useRef } from "react"
+import * as THREE from "three"
+import { Link } from "react-router-dom"
 
-const Typewriter = ({ text, startDelay }) => {
-  const [displayText, setDisplayText] = useState('');
-  
-  useEffect(() => {
-    let timeoutId;
-    if (startDelay) {
-      timeoutId = setTimeout(() => {
-        let i = 0;
-        const intervalId = setInterval(() => {
-          setDisplayText((prev) => prev + text.charAt(i));
-          i++;
-          if (i === text.length) clearInterval(intervalId);
-        }, 30);
-        return () => clearInterval(intervalId);
-      }, startDelay);
-    }
-    return () => clearTimeout(timeoutId);
-  }, [text, startDelay]);
+const fonts = `@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;900&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap');`
 
-  return <span>{displayText}<span className="animate-pulse text-lavender ml-1">|</span></span>;
-};
+const C = {
+ bg: "#05050E",
+ surface: "#0C0C1E",
+ glass: "rgba(255,255,255,0.03)",
+ glassBorder: "rgba(255,255,255,0.07)",
+ indigo: "#4F46E5",
+ cyan: "#06B6D4",
+ violet: "#7C3AED",
+ amber: "#F59E0B",
+ text1: "#FFFFFF",
+ text2: "#94A3B8",
+ text3: "#64748B",
+}
 
-const Landing = () => {
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [stats, setStats] = useState({ students: 0, notes: 0, questions: 0, rating: 0 });
+const subjects = ["JEE Main", "JEE Advanced", "NEET", "Class 6–10", "Class 11–12", "B.Tech", "BCA", "BSc"]
 
-  useEffect(() => {
-    // Basic observer for stats count-up could go here
-    // For simplicity, we just animate them on load
-    const timer = setTimeout(() => {
-      setStats({ students: 1200, notes: 50000, questions: 98000, rating: 4.9 });
-    }, 500);
-    return () => clearTimeout(timer);
-  }, []);
+const features = [
+ { n: "01", title: "AI Tutor Arya", sub: "Your personal 24/7 guide", body: "Arya knows your weak topics, exam date, and learning style. She explains like India's best teacher — step-by-step, Hinglish-friendly, and never just gives the answer.", color: "#4F46E5", icon: "🧠" },
+ { n: "02", title: "Adaptive Engine", sub: "Study smarter, not harder", body: "Our AI maps every chapter to your proficiency level and builds a personalized path. Spaced repetition keeps concepts fresh. Weak zones get targeted daily until they become green zones.", color: "#06B6D4", icon: "⚡" },
+ { n: "03", title: "Mock Battle Mode", sub: "Win before exam day", body: "Full-length JEE/NEET replicas with post-test AI analysis. Error patterns, time management insights, topic breakdown, and a live rank predictor — all in one session.", color: "#7C3AED", icon: "🎯" },
+ { n: "04", title: "PYQ Intelligence", sub: "20 years of exam patterns", body: "Every JEE (2000–2025) and NEET (2005–2025) question tagged, analyzed, and pattern-mapped by AI. Know which concepts appear most, predict next year's paper.", color: "#F59E0B", icon: "📊" },
+]
 
-  return (
-    <div className="min-h-screen bg-[#FAFAF5] text-[#3A3C4A] font-body relative overflow-x-hidden selection:bg-lavender/30 selection:text-[#3A3C4A]">
-      <AnimatedBackground />
+const stats = [
+ { val: "5", unit: "Free AI APIs", sub: "Groq · Gemini · DeepSeek · OpenRouter · Cloudflare" },
+ { val: "₹299", unit: "/month", sub: "Cheaper than any competitor" },
+ { val: "Class 6", unit: "→ Degree", sub: "Only full-lifecycle platform" },
+ { val: "10K+", unit: "PYQs", sub: "JEE 2000–2025 + NEET 2005–2025" },
+]
 
-      {/* SECTION 1 — NAVBAR */}
-      <nav className="fixed top-0 left-0 right-0 h-16 z-50 flex items-center justify-between px-6 md:px-12 bg-[#FAFAF5]/88 backdrop-blur-[20px] border-b border-[#CCCCCC]/30 transition-all">
-        <div className="flex items-center gap-2">
-          <span className="font-brand text-[1.4rem] text-[#3A3C4A]">EduMesh</span>
-          <Sparkles className="w-4 h-4 text-orchid animate-pulse-soft" />
-        </div>
+const orbStyle = (top, left, w, h, color1, color2, opacity = 0.35, delay = "0s") => ({
+ position: "absolute", top, left, width: w, height: h,
+ background: `radial-gradient(circle, ${color1} 0%, ${color2} 60%, transparent 100%)`,
+ borderRadius: "50%", filter: "blur(80px)", opacity,
+ animation: `orbFloat 8s ease-in-out infinite`, animationDelay: delay,
+ pointerEvents: "none", zIndex: 0,
+})
 
-        <div className="hidden md:flex items-center gap-8">
-          {['Features', 'How It Works', 'For Students'].map((item) => (
-            <a key={item} href={`#${item.toLowerCase().replace(/ /g, '-')}`} className="text-[0.95rem] font-medium text-[#6E7488] hover:text-[#3A3C4A] hover:underline decoration-lavender decoration-2 underline-offset-4 transition-all">
-              {item}
-            </a>
-          ))}
-        </div>
+const glassCard = (extra = {}) => ({
+ background: C.glass,
+ border: `1px solid ${C.glassBorder}`,
+ borderRadius: "20px",
+ backdropFilter: "blur(20px)",
+ WebkitBackdropFilter: "blur(20px)",
+ ...extra,
+})
 
-        <div className="hidden md:flex items-center gap-4">
-          <Link to="/login" className="px-5 py-2 rounded-full border-[1.5px] border-taupe text-[#6E7488] text-[0.95rem] font-medium hover:bg-white/60 transition-all">
-            Log In
-          </Link>
-          <Link to="/signup" className="px-6 py-2 rounded-full text-[#3A3C4A] text-[0.95rem] font-bold shadow-[0_6px_24px_rgba(178,204,255,0.40)] hover:-translate-y-[2px] transition-all" style={{ background: 'linear-gradient(135deg, #B2CCFF 0%, #D0AAFF 100%)' }}>
-            Get Started Free →
-          </Link>
-        </div>
+export default function Landing() {
+ const canvasRef = useRef(null)
+ const [active, setActive] = useState(0)
+ const [hoveredSub, setHoveredSub] = useState(null)
+ const [loaded, setLoaded] = useState(false)
 
-        <button className="md:hidden text-[#3A3C4A]" onClick={() => setIsDrawerOpen(!isDrawerOpen)}>
-          <Menu />
-        </button>
-      </nav>
+ useEffect(() => {
+ setTimeout(() => setLoaded(true), 100)
+ const t = setInterval(() => setActive(a => (a + 1) % features.length), 4000)
+ return () => clearInterval(t)
+ }, [])
 
-      {/* SECTION 2 — HERO */}
-      <section className="relative min-h-screen pt-28 pb-16 px-6 md:px-12 max-w-[1400px] mx-auto flex flex-col lg:flex-row items-center justify-center gap-12 z-10">
-        
-        {/* Floating decorations */}
-        <motion.div 
-          animate={{ y: [-8, 8, -8] }} 
-          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute top-32 right-12 lg:right-auto lg:left-[50%] px-4 py-2 bg-lemon/60 backdrop-blur-md rounded-full border border-lemon/40 shadow-soft text-sm font-medium text-[#3A3C4A] hidden md:block"
-        >
-          📝 Notes generated: 1,247
-        </motion.div>
-        
-        <motion.div 
-          animate={{ y: [8, -8, 8] }} 
-          transition={{ duration: 4.8, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute bottom-32 left-8 px-4 py-2 bg-coral/60 backdrop-blur-md rounded-full border border-coral/40 shadow-soft text-sm font-medium text-[#3A3C4A] hidden md:block"
-        >
-          🔥 12-day streak
-        </motion.div>
+ useEffect(() => {
+ const canvas = canvasRef.current
+ if (!canvas) return
 
-        {/* Left Column (55%) */}
-        <div className="w-full lg:w-[55%] flex flex-col items-start space-y-6">
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-            className="px-4 py-1.5 bg-lemon/35 border border-lemon rounded-full text-[0.78rem] font-semibold text-[#6E7488]"
-          >
-            ✦ AI-Powered Study Tool
-          </motion.div>
+ const scene = new THREE.Scene()
+ const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100)
+ camera.position.z = 4.2
 
-          <motion.h1 
-            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-            className="font-display font-[800] text-[#3A3C4A] leading-[1.15] text-[clamp(2.8rem,5.5vw,4.2rem)]"
-          >
-            Synthesize any subject. <br />
-            <span className="relative">
-              Master
-              <svg className="absolute w-full h-[12px] bottom-1 left-0 -z-10" viewBox="0 0 100 12" preserveAspectRatio="none">
-                <motion.path 
-                  initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ delay: 0.8, duration: 0.6 }}
-                  d="M0,8 C30,2 70,2 100,8" fill="none" stroke="#FFBBAA" strokeWidth="3" strokeLinecap="round" 
-                />
-              </svg>
-            </span> every exam.
-          </motion.h1>
+ const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true })
+ renderer.setSize(480, 480)
+ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
 
-          <motion.p 
-            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-            className="text-[1.1rem] text-[#6E7488] leading-[1.7] max-w-[480px] mt-5"
-          >
-            EduMesh is your AI study partner — instant explanations, smart notes, and practice quizzes. All in one place.
-          </motion.p>
+ const vs = `
+ uniform float uTime;
+ varying vec3 vNormal;
+ varying float vD;
+ void main() {
+ vNormal = normal;
+ vec3 p = position;
+ float d = sin(p.x*3.0+uTime*1.2)*cos(p.y*2.5+uTime*0.8)*sin(p.z*3.0+uTime);
+ vD = d; p += normal * d * 0.13;
+ gl_Position = projectionMatrix * modelViewMatrix * vec4(p,1.0);
+ }
+ `
+ const fs = `
+ uniform float uTime;
+ varying vec3 vNormal;
+ varying float vD;
+ void main() {
+ vec3 c1=vec3(0.31,0.27,0.91), c2=vec3(0.05,0.72,0.84), c3=vec3(0.49,0.23,0.93);
+ float t=vD*0.5+0.5+sin(uTime*0.2)*0.1;
+ vec3 col=mix(c1,c2,clamp(t,0.0,1.0));
+ col=mix(col,c3,abs(vNormal.x)*0.35+sin(uTime*0.3)*0.1);
+ vec3 vd=normalize(vec3(0.0,0.0,1.0));
+ float fr=pow(1.0-max(dot(vNormal,vd),0.0),3.0);
+ col += vec3(0.35,0.65,1.0)*fr*0.75;
+ gl_FragColor = vec4(col, 0.88+fr*0.12);
+ }
+ `
 
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}
-            className="flex flex-wrap items-center gap-[14px] mt-9"
-          >
-            <Link to="/signup" className="px-8 py-[14px] rounded-full text-[#3A3C4A] text-[1rem] font-bold shadow-[0_6px_24px_rgba(178,204,255,0.40)] hover:-translate-y-[2px] transition-all" style={{ background: 'linear-gradient(135deg, #B2CCFF 0%, #D0AAFF 100%)' }}>
-              Start Studying Free →
-            </Link>
-            <a href="#how-it-works" className="px-7 py-[14px] rounded-full border-[1.5px] border-taupe text-[#6E7488] text-[1rem] font-medium hover:bg-white/60 transition-all">
-              See how it works ↓
-            </a>
-          </motion.div>
+ const geo = new THREE.SphereGeometry(1.42, 128, 128)
+ const mat = new THREE.ShaderMaterial({ uniforms: { uTime: { value: 0 } }, vertexShader: vs, fragmentShader: fs, transparent: true })
+ const mesh = new THREE.Mesh(geo, mat)
+ scene.add(mesh)
 
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}
-            className="flex items-center gap-3 mt-4"
-          >
-            <div className="flex -space-x-2">
-              {[1, 2, 3, 4].map(i => (
-                <div key={i} className="w-8 h-8 rounded-full bg-[#CCCCCC] border-2 border-white" style={{ background: `linear-gradient(135deg, #FFAAF0, #B2CCFF)` }}></div>
-              ))}
-            </div>
-            <span className="text-[0.85rem] font-medium text-[#BBBBCC]">Joined by 1,200+ students this month</span>
-          </motion.div>
-        </div>
+ const bgGeo = new THREE.SphereGeometry(1.85, 32, 32)
+ const bgMat = new THREE.MeshBasicMaterial({ color: 0x3730a3, transparent: true, opacity: 0.07, side: THREE.BackSide })
+ scene.add(new THREE.Mesh(bgGeo, bgMat))
 
-        {/* Right Column (45%) */}
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.4 }}
-          className="w-full lg:w-[45%] max-w-[500px]"
-        >
-          <motion.div 
-            animate={{ y: [-8, 0, -8] }} transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-            className="glass-base rounded-[20px] overflow-hidden" style={{ background: 'rgba(255,255,255,0.72)', borderColor: 'rgba(255,255,255,0.55)' }}
-          >
-            <div className="h-[42px] bg-periwinkle/18 flex items-center justify-between px-4 border-b border-white/40">
-              <div className="flex gap-1.5">
-                <div className="w-2 h-2 rounded-full bg-rose"></div>
-                <div className="w-2 h-2 rounded-full bg-lemon"></div>
-                <div className="w-2 h-2 rounded-full bg-lime"></div>
-              </div>
-              <span className="text-[0.82rem] font-medium text-[#BBBBCC]">AI Study Chat</span>
-            </div>
-            
-            <div className="p-4 h-[260px] flex flex-col gap-4 overflow-hidden relative">
-              {/* User Bubble */}
-              <motion.div 
-                initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 1 }}
-                className="self-end max-w-[85%] px-4 py-2.5 rounded-[20px] rounded-br-[6px] text-[#3A3C4A] text-[0.9rem] shadow-sm"
-                style={{ background: 'linear-gradient(135deg, #B2CCFF, #D0AAFF)' }}
-              >
-                Explain Newton's Third Law with a real-world example
-              </motion.div>
+ const ringGeo = new THREE.TorusGeometry(2.1, 0.012, 8, 200)
+ const ringMat = new THREE.MeshBasicMaterial({ color: 0x818cf8, transparent: true, opacity: 0.25 })
+ const ring = new THREE.Mesh(ringGeo, ringMat)
+ ring.rotation.x = Math.PI / 3
+ scene.add(ring)
 
-              {/* AI Bubble */}
-              <motion.div 
-                initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 1.5 }}
-                className="self-start max-w-[90%] px-4 py-2.5 rounded-[20px] rounded-bl-[6px] text-[#3A3C4A] text-[0.9rem] bg-white/80 border-[1.5px] border-seafoam/40 shadow-sm"
-              >
-                <Typewriter text="Newton's Third Law states that for every action, there is an equal and opposite reaction. 🚀 When you push off the ground while jumping, the ground pushes back on you with the same force..." startDelay={1800} />
-              </motion.div>
-            </div>
+ const r2Geo = new THREE.TorusGeometry(2.6, 0.008, 8, 200)
+ const r2Mat = new THREE.MeshBasicMaterial({ color: 0x06b6d4, transparent: true, opacity: 0.18 })
+ const ring2 = new THREE.Mesh(r2Geo, r2Mat)
+ ring2.rotation.x = Math.PI / 4
+ ring2.rotation.z = Math.PI / 5
+ scene.add(ring2)
 
-            <div className="p-3 bg-white/40 border-t border-white/40">
-              <div className="flex items-center justify-between px-4 py-2 bg-white/75 border border-lavender/30 rounded-full">
-                <span className="text-[#BBBBCC] text-[0.9rem]">Ask anything...</span>
-                <div className="w-7 h-7 rounded-full flex items-center justify-center text-white" style={{ background: 'linear-gradient(135deg, #B2CCFF, #D0AAFF)' }}>
-                  <Send size={14} />
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        </motion.div>
-      </section>
+ const n = 2000
+ const pos = new Float32Array(n * 3)
+ for (let i = 0; i < n; i++) {
+ const th = Math.random() * Math.PI * 2, ph = Math.acos(2 * Math.random() - 1), r = 2.1 + Math.random() * 2
+ pos[i*3] = r*Math.sin(ph)*Math.cos(th); pos[i*3+1] = r*Math.sin(ph)*Math.sin(th); pos[i*3+2] = r*Math.cos(ph)
+ }
+ const pGeo = new THREE.BufferGeometry()
+ pGeo.setAttribute("position", new THREE.BufferAttribute(pos, 3))
+ const pMat = new THREE.PointsMaterial({ size: 0.018, color: 0x818cf8, transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending })
+ const pts = new THREE.Points(pGeo, pMat)
+ scene.add(pts)
 
-      {/* SECTION 3 — SOCIAL PROOF TICKER */}
-      <section className="h-[40px] bg-lavender/12 border-y border-lavender/20 flex items-center overflow-hidden whitespace-nowrap z-10 relative">
-        <div className="flex animate-[marquee_28s_linear_infinite]">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="flex items-center gap-4 px-4 text-[0.85rem] font-medium text-[#6E7488]">
-              <span>🤖 AI-powered explanations</span> <span className="text-orchid">✦</span>
-              <span>📝 Smart notes in seconds</span> <span className="text-orchid">✦</span>
-              <span>🧠 Adaptive MCQ quizzes</span> <span className="text-orchid">✦</span>
-              <span>📊 Study streak tracker</span> <span className="text-orchid">✦</span>
-              <span>📥 PDF export</span> <span className="text-orchid">✦</span>
-              <span>🎓 Built for college students</span> <span className="text-orchid">✦</span>
-            </div>
-          ))}
-        </div>
-      </section>
+ const clk = new THREE.Clock()
+ let raf
+ const animate = () => {
+ raf = requestAnimationFrame(animate)
+ const t = clk.getElapsedTime()
+ mat.uniforms.uTime.value = t
+ mesh.rotation.y = t * 0.08; mesh.rotation.x = Math.sin(t * 0.15) * 0.08
+ mesh.position.y = Math.sin(t * 0.4) * 0.07
+ pts.rotation.y = t * 0.03; pts.rotation.z = t * 0.01
+ ring.rotation.y = t * 0.14; ring2.rotation.y = -t * 0.09
+ renderer.render(scene, camera)
+ }
+ animate()
 
-      {/* SECTION 4 — FEATURES BENTO GRID */}
-      <section id="features" className="py-24 px-6 md:px-12 max-w-[1200px] mx-auto z-10 relative">
-        <div className="text-center mb-16 flex flex-col items-center">
-          <div className="px-4 py-1.5 bg-lemon/35 border border-lemon rounded-full text-[0.85rem] font-semibold text-[#3A3C4A] mb-4">
-            Everything You Need
-          </div>
-          <h2 className="font-display font-[700] text-[2.2rem] text-[#3A3C4A] mb-3">Your entire study toolkit, reimagined.</h2>
-          <p className="text-[#6E7488] max-w-[480px]">Five tools that work together so you can focus on learning.</p>
-        </div>
+ return () => {
+ cancelAnimationFrame(raf); renderer.dispose()
+ mat.dispose(); geo.dispose(); bgMat.dispose(); bgGeo.dispose()
+ ringMat.dispose(); ringGeo.dispose(); r2Mat.dispose(); r2Geo.dispose()
+ pMat.dispose(); pGeo.dispose()
+ }
+ }, [])
 
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 auto-rows-auto">
-          {/* AI Chat (Large) */}
-          <div className="md:col-span-7 md:row-span-2 glass-base rounded-[24px] p-8 flex flex-col hover:-translate-y-1.5 transition-all duration-300" style={{ background: 'rgba(255,255,255,0.72)' }}>
-            <div className="flex justify-between items-start mb-6">
-              <div className="w-14 h-14 rounded-full flex items-center justify-center text-2xl shadow-sm" style={{ background: 'linear-gradient(135deg, #D0AAFF, #B2CCFF)' }}>🤖</div>
-              <span className="px-3 py-1 bg-orchid/20 text-[#3A3C4A] text-xs font-bold rounded-full">Most Used</span>
-            </div>
-            <h3 className="font-display font-[700] text-[1.5rem] text-[#3A3C4A] mb-2">AI Study Chat</h3>
-            <p className="text-[#6E7488]">Ask any doubt and get instant, detailed explanations. No more waiting — just answers.</p>
-          </div>
+ const f = features[active]
 
-          {/* Smart Notes (Medium) */}
-          <div className="md:col-span-5 glass-base rounded-[24px] p-6 hover:-translate-y-1.5 transition-all duration-300 overflow-hidden relative">
-            <div className="w-12 h-12 rounded-full flex items-center justify-center text-xl shadow-sm mb-4" style={{ background: 'linear-gradient(135deg, #FFD9B3, #FFBBAA)' }}>📝</div>
-            <h3 className="font-display font-[700] text-[1.25rem] text-[#3A3C4A] mb-2">Smart Notes</h3>
-            <p className="text-[#6E7488] text-[0.95rem]">AI generates structured study notes with definitions, examples, and key formulas.</p>
-            <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-peach/20 rounded-xl rotate-12"></div>
-          </div>
+ return (
+ <div style={{ background: C.bg, minHeight: "100vh", fontFamily: "'Outfit', sans-serif", color: C.text1, position: "relative", overflowX: "hidden" }}>
+ <style>{`
+ ${fonts}
+ * { box-sizing: border-box; margin: 0; padding: 0; }
+ @keyframes orbFloat { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(-24px) scale(1.04)} }
+ @keyframes fadeUp { from{opacity:0;transform:translateY(32px)} to{opacity:1;transform:translateY(0)} }
+ @keyframes ticker { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
+ @keyframes pulse { 0%,100%{opacity:0.6} 50%{opacity:1} }
+ @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+ .fade-in { animation: fadeUp 0.8s ease-out both; }
+ .d1 { animation-delay: 0.1s; }
+ .d2 { animation-delay: 0.25s; }
+ .d3 { animation-delay: 0.4s; }
+ .d4 { animation-delay: 0.55s; }
+ .btn-primary { background: linear-gradient(135deg, #4F46E5, #7C3AED); border: none; color: #fff; padding: 14px 32px; border-radius: 100px; font-family: 'Outfit', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s; letter-spacing: 0.01em; text-decoration: none; display: inline-block; }
+ .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(79,70,229,0.4); }
+ .btn-ghost { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 14px 32px; border-radius: 100px; font-family: 'Outfit', sans-serif; font-size: 15px; font-weight: 500; cursor: pointer; transition: all 0.2s; text-decoration: none; display: inline-block; }
+ .btn-ghost:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.18); transform: translateY(-2px); }
+ .feat-btn { background: none; border: 1px solid rgba(255,255,255,0.06); color: #94A3B8; padding: 10px 20px; border-radius: 100px; font-family: 'Outfit', sans-serif; font-size: 13px; cursor: pointer; transition: all 0.25s; white-space: nowrap; }
+ .feat-btn.on { background: rgba(79,70,229,0.15); border-color: rgba(79,70,229,0.4); color: #a5b4fc; }
+ .feat-btn:hover { color: #fff; border-color: rgba(255,255,255,0.15); }
+ .sub-pill { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); color: #94A3B8; padding: 8px 18px; border-radius: 100px; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+ .sub-pill:hover, .sub-pill.active { background: rgba(79,70,229,0.12); border-color: rgba(99,102,241,0.35); color: #c7d2fe; }
+ .nav-link { color: #94A3B8; text-decoration: none; font-size: 14px; font-weight: 500; transition: color 0.2s; }
+ .nav-link:hover { color: #fff; }
+ ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: #0a0a1a; } ::-webkit-scrollbar-thumb { background: #2d2d60; border-radius: 3px; }
+ `}</style>
 
-          {/* Practice Quiz (Medium) */}
-          <div className="md:col-span-5 glass-base rounded-[24px] p-6 hover:-translate-y-1.5 transition-all duration-300 relative overflow-hidden">
-            <div className="w-12 h-12 rounded-full flex items-center justify-center text-xl shadow-sm mb-4" style={{ background: 'linear-gradient(135deg, #A8FFEC, #B2FFD4)' }}>🧠</div>
-            <h3 className="font-display font-[700] text-[1.25rem] text-[#3A3C4A] mb-2">Practice Quiz</h3>
-            <p className="text-[#6E7488] text-[0.95rem]">MCQ quizzes generated by AI for any topic. Instant feedback on every answer.</p>
-            <div className="absolute top-4 right-4 flex gap-1">
-              <div className="w-6 h-6 rounded-full bg-white border border-taupe/40 flex items-center justify-center text-[10px] font-bold">A</div>
-              <div className="w-6 h-6 rounded-full bg-mint/30 border border-mint flex items-center justify-center text-[10px] font-bold text-mint">B</div>
-            </div>
-          </div>
+ {/* BG Orbs */}
+ <div style={orbStyle("-10%", "-5%", "55vw", "55vw", "#3730a3", "#1e1b4b", 0.3, "0s")} />
+ <div style={orbStyle("30%", "55%", "45vw", "45vw", "#0e7490", "#164e63", 0.25, "2s")} />
+ <div style={orbStyle("70%", "10%", "38vw", "38vw", "#5b21b6", "#4c1d95", 0.2, "4s")} />
+ <div style={orbStyle("5%", "40%", "30vw", "30vw", "#6d28d9", "#4c1d95", 0.15, "1s")} />
 
-          {/* PDF Export (Small) */}
-          <div className="md:col-span-4 glass-base rounded-[24px] p-6 hover:-translate-y-1.5 transition-all duration-300">
-            <div className="w-11 h-11 rounded-full flex items-center justify-center text-lg shadow-sm mb-4" style={{ background: 'linear-gradient(135deg, #FFBBC8, #FFB0B0)' }}>📥</div>
-            <h3 className="font-display font-[700] text-[1.1rem] text-[#3A3C4A] mb-2">PDF Export</h3>
-            <p className="text-[#6E7488] text-[0.9rem]">Download your generated notes as a formatted PDF for offline study.</p>
-          </div>
+ {/* Nav */}
+ <nav style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 100, backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", borderBottom: `1px solid ${C.glassBorder}`, background: "rgba(5,5,14,0.7)" }}>
+ <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 2.5rem", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+ <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+ <div style={{ width: 32, height: 32, borderRadius: 10, background: "linear-gradient(135deg, #4F46E5, #06B6D4)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>✦</div>
+ <span style={{ fontSize: 18, fontWeight: 700, letterSpacing: "-0.02em" }}>EduMesh</span>
+ <span style={{ background: "rgba(79,70,229,0.2)", border: "1px solid rgba(79,70,229,0.35)", color: "#a5b4fc", fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 100, marginLeft: 6, letterSpacing: "0.08em" }}>v2.5</span>
+ </div>
+ <div style={{ display: "flex", gap: 32 }} className="hidden md:flex">
+ {["Features", "Courses", "Pricing", "Blog"].map(l => <Link key={l} to={`/${l.toLowerCase()}`} className="nav-link">{l}</Link>)}
+ </div>
+ <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+ <Link to="/login" className="btn-ghost" style={{ padding: "8px 20px", fontSize: 14 }}>Log In</Link>
+ <Link to="/onboarding/step1" className="btn-primary" style={{ padding: "9px 22px", fontSize: 14 }}>Start Free →</Link>
+ </div>
+ </div>
+ </nav>
 
-          {/* Dashboard (Small) */}
-          <div className="md:col-span-4 glass-base rounded-[24px] p-6 hover:-translate-y-1.5 transition-all duration-300">
-            <div className="w-11 h-11 rounded-full flex items-center justify-center text-lg shadow-sm mb-4" style={{ background: 'linear-gradient(135deg, #B2CCFF, #D0AAFF)' }}>📊</div>
-            <h3 className="font-display font-[700] text-[1.1rem] text-[#3A3C4A] mb-2">Dashboard</h3>
-            <p className="text-[#6E7488] text-[0.9rem]">Track your streak, notes count, quiz history, and average score.</p>
-          </div>
+ {/* Hero */}
+ <section style={{ position: "relative", zIndex: 1, maxWidth: 1280, margin: "0 auto", padding: "130px 2.5rem 80px", display: "flex", flexDirection: "column", gap: "4rem" }} className="md:flex-row md:items-center">
+ {/* Left */}
+ <div style={{ flex: 1, minWidth: 0 }}>
+ <div className="fade-in d1" style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(79,70,229,0.12)", border: "1px solid rgba(79,70,229,0.3)", borderRadius: 100, padding: "6px 16px 6px 8px", marginBottom: 28 }}>
+ <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#4ade80", boxShadow: "0 0 8px #4ade80", animation: "pulse 2s ease-in-out infinite" }} />
+ <span style={{ fontSize: 12, fontWeight: 600, color: "#a5b4fc", letterSpacing: "0.04em" }}>INDIA'S FIRST FULL-LIFECYCLE AI LEARNING OS</span>
+ </div>
 
-          {/* Free to Start (Small) */}
-          <div className="md:col-span-4 glass-base rounded-[24px] p-6 flex flex-col items-center justify-center text-center hover:-translate-y-1.5 transition-all duration-300 bg-lime/10">
-            <h3 className="font-display font-[800] text-[2.5rem] bg-clip-text text-transparent" style={{ backgroundImage: 'linear-gradient(135deg, #7DD4A8, #5AB88A)' }}>Free</h3>
-            <p className="text-[#BBBBCC] text-[0.9rem] mb-4">No credit card. No catch.</p>
-            <Link to="/signup" className="px-5 py-2 rounded-full text-[#3A3C4A] text-sm font-bold bg-periwinkle hover:brightness-105 transition-all">
-              Get Started →
-            </Link>
-          </div>
-        </div>
-      </section>
+ <h1 className="fade-in d2" style={{ fontSize: "clamp(2.6rem, 4.5vw, 3.8rem)", fontWeight: 900, lineHeight: 1.05, letterSpacing: "-0.03em", marginBottom: 24 }}>
+ From{" "}
+ <span style={{ background: "linear-gradient(135deg, #818cf8 0%, #06B6D4 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>Class 6</span>{" "}
+ to{" "}
+ <span style={{ background: "linear-gradient(135deg, #a78bfa 0%, #f472b6 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>JEE / NEET</span>{" "}
+ to{" "}
+ <span style={{ background: "linear-gradient(135deg, #34d399 0%, #06B6D4 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>Degree</span>
+ </h1>
 
-      {/* SECTION 5 — HOW IT WORKS */}
-      <section id="how-it-works" className="py-24 px-6 md:px-12 max-w-[1000px] mx-auto z-10 relative">
-        <div className="text-center mb-16">
-          <div className="inline-block px-4 py-1.5 bg-periwinkle/30 border border-periwinkle rounded-full text-[0.85rem] font-semibold text-[#3A3C4A] mb-4">
-            How It Works
-          </div>
-          <h2 className="font-display font-[700] text-[2.2rem] text-[#3A3C4A]">From confused to confident in 3 steps.</h2>
-        </div>
+ <p className="fade-in d3" style={{ fontSize: "1.1rem", color: C.text2, lineHeight: 1.7, maxWidth: 520, marginBottom: 36, fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 400 }}>
+ One AI platform for every stage of your academic journey. Powered by 5 free AI models — Groq, Gemini, DeepSeek, OpenRouter & Cloudflare — delivering personalized tutoring at ₹299/month.
+ </p>
 
-        <div className="relative flex flex-col md:flex-row gap-12 md:gap-8 justify-between">
-          <div className="absolute top-8 left-8 md:left-8 md:right-8 bottom-8 md:bottom-auto w-[2px] md:w-auto md:h-[2px] border-l-2 md:border-l-0 md:border-t-2 border-dashed border-taupe/50 -z-10"></div>
-          
-          {[
-            { num: '1', title: 'Ask anything', body: 'Type your question in plain English. EduMesh understands context, subject, and difficulty level.', gradient: '#B2CCFF, #D0AAFF' },
-            { num: '2', title: 'Get instant clarity', body: 'Our AI breaks down complex topics into clear explanations with examples, formulas, and analogies.', gradient: '#D0AAFF, #FFAAF0' },
-            { num: '3', title: 'Test & track progress', body: 'Take AI-generated MCQ quizzes. Review your scores. Watch your study streak grow day by day.', gradient: '#A8FFEC, #B2FFD4' }
-          ].map((step, i) => (
-            <div key={i} className="flex flex-col items-start md:items-center text-left md:text-center relative pl-16 md:pl-0">
-              <div className="absolute left-0 top-0 md:relative md:mb-6 w-16 h-16 rounded-full flex items-center justify-center font-display font-[800] text-2xl text-[#3A3C4A] shadow-sm" style={{ background: `linear-gradient(135deg, ${step.gradient})` }}>
-                {step.num}
-              </div>
-              <h3 className="font-bold text-[1.1rem] text-[#3A3C4A] mb-2">{step.title}</h3>
-              <p className="text-[#6E7488] text-[0.95rem] leading-relaxed max-w-[280px]">{step.body}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+ <div className="fade-in d3" style={{ display: "flex", gap: 12, marginBottom: 48, flexWrap: "wrap" }}>
+ <Link to="/onboarding/step1" className="btn-primary">Start Learning Free →</Link>
+ <button className="btn-ghost">Watch Demo ▶</button>
+ </div>
 
-      {/* SECTION 6 — SUBJECT SHOWCASE */}
-      <section className="py-24 px-6 md:px-12 max-w-[1200px] mx-auto z-10 relative">
-        <div className="bg-lilac/10 rounded-[24px] p-10 md:p-16 text-center border border-lilac/20">
-          <h2 className="font-display font-[700] text-[1.8rem] text-[#3A3C4A] mb-10">Works for every subject you study.</h2>
-          
-          <div className="flex flex-wrap justify-center gap-4">
-            {['Mathematics', 'Physics', 'Chemistry', 'Biology', 'History', 'Literature', 'Computer Science', 'Economics', 'Psychology', 'Statistics', 'Engineering', 'Geography', 'Political Science', 'Philosophy', 'Accounting', 'Law'].map((subject, i) => {
-              const colors = ['bg-periwinkle', 'bg-seafoam', 'bg-peach', 'bg-lime', 'bg-lemon', 'bg-orchid', 'bg-lavender', 'bg-mint', 'bg-blush', 'bg-coral', 'bg-lilac'];
-              const bg = colors[i % colors.length];
-              return (
-                <motion.div 
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.05 }}
-                  key={subject} 
-                  className={`px-5 py-2.5 rounded-full ${bg}/40 border border-${bg}/60 text-[#3A3C4A] text-[0.95rem] font-medium shadow-sm hover:-translate-y-1 hover:shadow-md cursor-pointer transition-all`}
-                >
-                  {subject}
-                </motion.div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
+ {/* Stats row */}
+ <div className="fade-in d4" style={{ display: "flex", gap: 32, flexWrap: "wrap" }}>
+ {[["50K+", "Students Enrolled"], ["99%", "Syllabus Coverage"], ["₹0", "To Start Today"], ["5 AIs", "Working For You"]].map(([v, l]) => (
+ <div key={l}>
+ <div style={{ fontSize: "1.4rem", fontWeight: 800, letterSpacing: "-0.02em", background: "linear-gradient(135deg,#fff,#a5b4fc)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>{v}</div>
+ <div style={{ fontSize: 12, color: C.text3, fontWeight: 500 }}>{l}</div>
+ </div>
+ ))}
+ </div>
+ </div>
 
-      {/* SECTION 7 — SOCIAL PROOF / TESTIMONIALS */}
-      <section className="py-24 px-6 md:px-12 max-w-[1200px] mx-auto z-10 relative">
-        <h2 className="font-display font-[700] text-[2rem] text-[#3A3C4A] text-center mb-16">Students love it 💜</h2>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 group/list">
-          {/* Card 1 */}
-          <div className="glass-base bg-lavender/10 rounded-[20px] p-8 -rotate-[1.5deg] hover:rotate-0 hover:-translate-y-2 transition-all duration-300 hover:z-10 group-hover/list:opacity-75 hover:!opacity-100">
-            <div className="flex text-[#3A3C4A] mb-4 text-lemon drop-shadow-sm">
-              {[...Array(5)].map((_,i) => <Star key={i} size={16} fill="currentColor" className="text-lemon" />)}
-            </div>
-            <p className="text-[#3A3C4A] font-medium leading-relaxed mb-6">"I used to spend 2 hours making notes for one chapter. EduMesh does it in 30 seconds. It's genuinely saved my semester."</p>
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-lavender to-periwinkle border-2 border-lavender/50"></div>
-              <span className="text-[0.8rem] font-medium text-[#6E7488]">Priya M. — 2nd Year Engineering</span>
-            </div>
-          </div>
+ {/* Right — Three.js Orb */}
+ <div style={{ position: "relative", width: "100%", maxWidth: 480, height: 480, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }} className="mx-auto md:w-[480px]">
+ <div style={{ position: "absolute", inset: "-40px", background: "radial-gradient(circle, rgba(79,70,229,0.15) 0%, transparent 70%)", borderRadius: "50%" }} />
+ <canvas ref={canvasRef} style={{ display: "block", position: "relative", zIndex: 2, width: '100%', height: '100%' }} />
 
-          {/* Card 2 */}
-          <div className="glass-base bg-peach/10 rounded-[20px] p-8 hover:-translate-y-2 transition-all duration-300 hover:z-10 group-hover/list:opacity-75 hover:!opacity-100">
-            <div className="flex text-[#3A3C4A] mb-4 text-lemon drop-shadow-sm">
-              {[...Array(5)].map((_,i) => <Star key={i} size={16} fill="currentColor" className="text-lemon" />)}
-            </div>
-            <p className="text-[#3A3C4A] font-medium leading-relaxed mb-6">"The quiz feature is insanely good. It actually asks tricky questions, not just surface-level stuff. My exam scores improved by 15%."</p>
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-peach to-coral border-2 border-peach/50"></div>
-              <span className="text-[0.8rem] font-medium text-[#6E7488]">Arjun K. — 3rd Year Commerce</span>
-            </div>
-          </div>
+ {/* Floating UI cards */}
+ <div style={{ ...glassCard({ padding: "12px 16px", position: "absolute", top: 40, left: -30, zIndex: 3, animation: "orbFloat 6s ease-in-out infinite" }) }}>
+ <div style={{ fontSize: 11, color: C.text3, fontWeight: 500, marginBottom: 4 }}>ARYA AI TUTOR</div>
+ <div style={{ fontSize: 13, color: "#c7d2fe", fontWeight: 600, lineHeight: 1.4, maxWidth: 180 }}>"Explain Newton's 3rd Law with cricket analogy 🏏"</div>
+ </div>
 
-          {/* Card 3 */}
-          <div className="glass-base bg-mint/10 rounded-[20px] p-8 rotate-[1.5deg] hover:rotate-0 hover:-translate-y-2 transition-all duration-300 hover:z-10 group-hover/list:opacity-75 hover:!opacity-100">
-            <div className="flex text-[#3A3C4A] mb-4 drop-shadow-sm">
-              {[...Array(4)].map((_,i) => <Star key={i} size={16} fill="currentColor" className="text-lemon" />)}<Star size={16} className="text-taupe" fill="currentColor" />
-            </div>
-            <p className="text-[#3A3C4A] font-medium leading-relaxed mb-6">"Love how it explains things in simple language. Finally understand organic chemistry after failing twice. The PDF notes are 🔥"</p>
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-mint to-seafoam border-2 border-mint/50"></div>
-              <span className="text-[0.8rem] font-medium text-[#6E7488]">Sneha R. — 1st Year Pre-Med</span>
-            </div>
-          </div>
-        </div>
-      </section>
+ <div style={{ ...glassCard({ padding: "12px 16px", position: "absolute", bottom: 60, right: -20, zIndex: 3, animation: "orbFloat 7s ease-in-out infinite", animationDelay: "1.5s" }) }}>
+ <div style={{ fontSize: 11, color: C.text3, fontWeight: 500, marginBottom: 6 }}>MOCK TEST RESULT</div>
+ <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+ <div style={{ fontSize: 24, fontWeight: 900, color: "#4ade80" }}>215</div>
+ <div>
+ <div style={{ fontSize: 11, color: C.text2 }}>Score / 300</div>
+ <div style={{ fontSize: 11, color: "#fbbf24" }}>↑ +18 from last mock</div>
+ </div>
+ </div>
+ </div>
 
-      {/* SECTION 8 — STATS BAND */}
-      <section className="py-12 px-6 md:px-12 max-w-[1200px] mx-auto z-10 relative">
-        <div className="glass-base bg-periwinkle/15 border-[1.5px] border-periwinkle/25 rounded-[24px] p-12">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-0 divide-y md:divide-y-0 md:divide-x border-dashed divide-dashed divide-taupe/60">
-            
-            <div className="flex flex-col items-center text-center p-4">
-              <div className="w-10 h-10 rounded-full bg-periwinkle/30 flex items-center justify-center mb-3">🎓</div>
-              <div className="font-display font-[800] text-[2.5rem] text-[#6E8BB5]">1,200+</div>
-              <div className="text-[0.9rem] font-medium text-[#6E7488]">Active Students</div>
-            </div>
+ <div style={{ ...glassCard({ padding: "10px 14px", position: "absolute", top: "50%", right: -10, transform: "translateY(-50%)", zIndex: 3, animation: "orbFloat 9s ease-in-out infinite", animationDelay: "3s" }) }}>
+ <div style={{ fontSize: 11, color: "#fbbf24", marginBottom: 4 }}>🔥 STREAK</div>
+ <div style={{ fontSize: 22, fontWeight: 900, color: "#fff" }}>47</div>
+ <div style={{ fontSize: 11, color: C.text3 }}>days</div>
+ </div>
+ </div>
+ </section>
 
-            <div className="flex flex-col items-center text-center p-4">
-              <div className="w-10 h-10 rounded-full bg-orchid/30 flex items-center justify-center mb-3">📝</div>
-              <div className="font-display font-[800] text-[2.5rem] text-[#CC66CC]">50,000+</div>
-              <div className="text-[0.9rem] font-medium text-[#6E7488]">Notes Generated</div>
-            </div>
+ {/* Ticker */}
+ <div style={{ position: "relative", zIndex: 1, borderTop: `1px solid ${C.glassBorder}`, borderBottom: `1px solid ${C.glassBorder}`, overflow: "hidden", padding: "14px 0", background: "rgba(255,255,255,0.015)" }}>
+ <div style={{ display: "flex", animation: "ticker 25s linear infinite", gap: 0, width: "max-content" }}>
+ {[...subjects, ...subjects].map((s, i) => (
+ <span key={i} style={{ padding: "0 40px", fontSize: 13, fontWeight: 600, color: C.text2, letterSpacing: "0.06em", display: "flex", alignItems: "center", gap: 16 }}>
+ {s} <span style={{ color: C.indigo }}>✦</span>
+ </span>
+ ))}
+ </div>
+ </div>
 
-            <div className="flex flex-col items-center text-center p-4">
-              <div className="w-10 h-10 rounded-full bg-mint/30 flex items-center justify-center mb-3">🧠</div>
-              <div className="font-display font-[800] text-[2.5rem] text-[#5AB88A]">98,000+</div>
-              <div className="text-[0.9rem] font-medium text-[#6E7488]">Questions Served</div>
-            </div>
+ {/* Subject Pills */}
+ <section style={{ position: "relative", zIndex: 1, maxWidth: 1280, margin: "0 auto", padding: "64px 2.5rem 0" }}>
+ <div style={{ textAlign: "center", marginBottom: 40 }}>
+ <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.14em", color: C.indigo, marginBottom: 16 }}>WHAT ARE YOU PREPARING FOR?</div>
+ <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+ {subjects.map(s => (
+ <button key={s} className={`sub-pill${hoveredSub === s ? " active" : ""}`} onMouseEnter={() => setHoveredSub(s)} onMouseLeave={() => setHoveredSub(null)}>{s}</button>
+ ))}
+ </div>
+ </div>
+ </section>
 
-            <div className="flex flex-col items-center text-center p-4">
-              <div className="w-10 h-10 rounded-full bg-lemon/30 flex items-center justify-center mb-3">⭐</div>
-              <div className="font-display font-[800] text-[2.5rem] text-[#B8B84D]">4.9★</div>
-              <div className="text-[0.9rem] font-medium text-[#6E7488]">Avg. Rating</div>
-            </div>
+ {/* Features */}
+ <section style={{ position: "relative", zIndex: 1, maxWidth: 1280, margin: "0 auto", padding: "80px 2.5rem" }}>
+ <div style={{ textAlign: "center", marginBottom: 56 }}>
+ <h2 style={{ fontSize: "clamp(2rem, 3vw, 2.8rem)", fontWeight: 800, letterSpacing: "-0.03em", marginBottom: 16 }}>
+ Everything your AI brain needs
+ </h2>
+ <p style={{ color: C.text2, fontSize: "1rem", fontFamily: "'Plus Jakarta Sans', sans-serif", maxWidth: 480, margin: "0 auto" }}>
+ From adaptive learning to post-exam analysis — EduMesh AI works 24/7 so you study smarter.
+ </p>
+ </div>
 
-          </div>
-        </div>
-      </section>
+ <div style={{ display: "flex", gap: 12, marginBottom: 40, justifyContent: "center", flexWrap: "wrap" }}>
+ {features.map((f, i) => (
+ <button key={i} className={`feat-btn${active === i ? " on" : ""}`} onClick={() => setActive(i)}>{f.n} {f.title}</button>
+ ))}
+ </div>
 
-      {/* SECTION 9 — FINAL CTA */}
-      <section className="py-24 px-6 md:px-12 max-w-[1000px] mx-auto z-10 relative">
-        <div className="rounded-[32px] p-12 md:p-20 text-center relative overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(208, 170, 255, 0.12) 0%, rgba(178, 204, 255, 0.08) 100%)' }}>
-          <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-lavender/20 blur-[60px] rounded-full"></div>
-          <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-periwinkle/20 blur-[60px] rounded-full"></div>
-          
-          <Sparkles className="w-8 h-8 text-orchid mx-auto mb-6 animate-[spin_4s_linear_infinite]" />
-          <h2 className="font-display font-[800] text-[clamp(2rem,4vw,3rem)] text-[#3A3C4A] mb-4 relative z-10">Your smartest study session starts now.</h2>
-          <p className="text-[1.1rem] text-[#BBBBCC] mb-10 relative z-10">Free forever. No credit card. No confusion.</p>
-          
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 relative z-10">
-            <Link to="/signup" className="glass-base px-8 py-[14px] rounded-full text-[#3A3C4A] text-[1rem] font-bold hover:-translate-y-[2px] transition-all w-full sm:w-auto" style={{ background: 'linear-gradient(135deg, #B2CCFF, #D0AAFF)' }}>
-              Create Free Account →
-            </Link>
-            <Link to="/demo" className="px-8 py-[14px] rounded-full text-[#6E7488] font-medium hover:bg-black/5 transition-all w-full sm:w-auto border-[1.5px] border-transparent">
-              Try the demo first
-            </Link>
-          </div>
-        </div>
-      </section>
+ <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 20 }} className="md:grid-cols-2">
+ {/* Feature Detail */}
+ <div style={{ ...glassCard({ padding: "40px", position: "relative", overflow: "hidden" }) }}>
+ <div style={{ position: "absolute", top: -60, right: -60, width: 220, height: 220, background: `radial-gradient(circle, ${f.color}33 0%, transparent 70%)`, borderRadius: "50%", pointerEvents: "none" }} />
+ <div style={{ fontSize: 64, fontWeight: 900, color: `${f.color}30`, letterSpacing: "-0.04em", marginBottom: 16, lineHeight: 1 }}>{f.n}</div>
+ <div style={{ fontSize: 32, marginBottom: 8 }}>{f.icon}</div>
+ <h3 style={{ fontSize: "1.6rem", fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 8 }}>{f.title}</h3>
+ <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.1em", color: f.color, marginBottom: 16 }}>{f.sub.toUpperCase()}</div>
+ <p style={{ color: C.text2, lineHeight: 1.7, fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: "0.95rem" }}>{f.body}</p>
+ <div style={{ marginTop: 28 }}>
+ <button className="btn-primary" style={{ background: `linear-gradient(135deg, ${f.color}, ${f.color}aa)`, fontSize: 13, padding: "10px 24px" }}>Explore {f.title} →</button>
+ </div>
+ </div>
 
-      {/* SECTION 10 — FOOTER */}
-      <footer className="bg-[#3A3C4A]/[0.04] border-t border-[#CCCCCC]/25 pt-16 pb-8 px-6 md:px-12 z-10 relative">
-        <div className="max-w-[1200px] mx-auto flex flex-col md:flex-row justify-between gap-12 mb-16">
-          
-          <div className="w-full md:w-1/3 space-y-4">
-            <div className="font-brand text-[1.3rem] text-[#3A3C4A]">EduMesh</div>
-            <p className="text-[0.9rem] text-[#BBBBCC]">Your AI study partner for college.</p>
-            <a href="https://github.com" className="inline-block mt-2 text-taupe hover:text-[#3A3C4A] transition-colors"><Code size={20} /></a>
-          </div>
+ {/* Stats Grid */}
+ <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16 }} className="sm:grid-cols-2">
+ {stats.map((s, i) => (
+ <div key={i} style={{ ...glassCard({ padding: "24px", display: "flex", flexDirection: "column", justifyContent: "space-between" }) }}>
+ <div style={{ fontSize: "2rem", fontWeight: 900, letterSpacing: "-0.03em", background: "linear-gradient(135deg, #fff 40%, #818cf8)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text", lineHeight: 1, marginBottom: 4 }}>{s.val}</div>
+ <div style={{ fontSize: "0.95rem", fontWeight: 700, color: "#e2e8f0", marginBottom: 6 }}>{s.unit}</div>
+ <div style={{ fontSize: 11, color: C.text3, lineHeight: 1.5 }}>{s.sub}</div>
+ </div>
+ ))}
+ </div>
+ </div>
+ </section>
 
-          <div className="w-full md:w-1/3 flex flex-col space-y-3">
-            <span className="font-semibold text-[0.85rem] text-[#6E7488] mb-2">Product</span>
-            {['Features', 'Dashboard', 'AI Chat', 'Smart Notes', 'Practice Quiz'].map(link => (
-              <a key={link} href="#" className="text-[0.85rem] text-[#BBBBCC] hover:text-[#3A3C4A] hover:translate-x-1 transition-all w-max">{link}</a>
-            ))}
-          </div>
+ {/* AI Stack */}
+ <section style={{ position: "relative", zIndex: 1, maxWidth: 1280, margin: "0 auto", padding: "0 2.5rem 80px" }}>
+ <div style={{ ...glassCard({ padding: "48px" }), background: "rgba(79,70,229,0.04)" }}>
+ <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 40, flexWrap: "wrap", gap: 24 }}>
+ <div>
+ <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.14em", color: "#818cf8", marginBottom: 12 }}>THE FREE AI STACK</div>
+ <h3 style={{ fontSize: "1.8rem", fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 8 }}>5 AI models, zero API cost</h3>
+ <p style={{ color: C.text2, fontFamily: "'Plus Jakarta Sans', sans-serif", maxWidth: 420 }}>A smart router picks the best free AI for each task — speed, vision, math, or reasoning.</p>
+ </div>
+ <button className="btn-primary" style={{ flexShrink: 0 }}>See Architecture →</button>
+ </div>
 
-          <div className="w-full md:w-1/3 flex flex-col space-y-3">
-            <span className="font-semibold text-[0.85rem] text-[#6E7488] mb-2">Get Started</span>
-            <Link to="/signup" className="text-[0.85rem] text-[#BBBBCC] hover:text-[#3A3C4A] hover:translate-x-1 transition-all w-max">Sign Up</Link>
-            <Link to="/login" className="text-[0.85rem] text-[#BBBBCC] hover:text-[#3A3C4A] hover:translate-x-1 transition-all w-max">Log In</Link>
-            <Link to="/demo" className="text-[0.85rem] text-[#BBBBCC] hover:text-[#3A3C4A] hover:translate-x-1 transition-all w-max">Demo Access</Link>
-            <span className="text-[0.8rem] text-taupe mt-4 inline-block">Built with ☕ and Groq AI</span>
-          </div>
+ <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12 }} className="sm:grid-cols-2 md:grid-cols-5">
+ {[
+ { name: "Groq", role: "Live Tutor Chat", speed: "370 tok/s", color: "#f97316", tag: "FASTEST" },
+ { name: "Gemini", role: "Image Doubts + Notes", speed: "1M context", color: "#4285f4", tag: "VISION" },
+ { name: "DeepSeek R1", role: "Math & Physics", speed: "GPT-4 level", color: "#06b6d4", tag: "REASONING" },
+ { name: "OpenRouter", role: "Fallback + 200+ Models", speed: "50 req/day", color: "#10b981", tag: "VERSATILE" },
+ { name: "Cloudflare", role: "Edge Inference", speed: "Global <50ms", color: "#f59e0b", tag: "EDGE" },
+ ].map(ai => (
+ <div key={ai.name} style={{ ...glassCard({ padding: "20px 16px", textAlign: "center" }), position: "relative", overflow: "hidden" }}>
+ <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: ai.color, borderRadius: "2px 2px 0 0" }} />
+ <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: "0.12em", color: ai.color, marginBottom: 10 }}>{ai.tag}</div>
+ <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 6, color: "#e2e8f0" }}>{ai.name}</div>
+ <div style={{ fontSize: 11, color: C.text3, marginBottom: 10, lineHeight: 1.4 }}>{ai.role}</div>
+ <div style={{ fontSize: 11, color: ai.color, fontWeight: 600, background: `${ai.color}15`, borderRadius: 100, padding: "3px 8px", display: "inline-block" }}>{ai.speed}</div>
+ </div>
+ ))}
+ </div>
+ </div>
+ </section>
 
-        </div>
+ {/* CTA */}
+ <section style={{ position: "relative", zIndex: 1, maxWidth: 1280, margin: "0 auto", padding: "0 2.5rem 100px" }}>
+ <div style={{ textAlign: "center", position: "relative" }}>
+ <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: "60%", height: 300, background: "radial-gradient(circle, rgba(79,70,229,0.2) 0%, transparent 70%)", borderRadius: "50%", pointerEvents: "none" }} />
+ <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.14em", color: "#818cf8", marginBottom: 20 }}>START YOUR JOURNEY</div>
+ <h2 style={{ fontSize: "clamp(2.2rem, 4vw, 3.6rem)", fontWeight: 900, letterSpacing: "-0.03em", marginBottom: 20, lineHeight: 1.05 }}>
+ Your rank won't improve<br />by waiting.
+ </h2>
+ <p style={{ color: C.text2, fontFamily: "'Plus Jakarta Sans', sans-serif", maxWidth: 400, margin: "0 auto 40px", lineHeight: 1.7 }}>
+ Join thousands of students from Class 6 to B.Tech who study smarter with EduMesh AI — free to start, forever affordable.
+ </p>
+ <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap" }}>
+ <Link to="/onboarding/step1" className="btn-primary" style={{ padding: "16px 40px", fontSize: 16 }}>Start Free Today →</Link>
+ <Link to="/pricing" className="btn-ghost" style={{ padding: "16px 40px", fontSize: 16 }}>View Pricing</Link>
+ </div>
+ <p style={{ color: C.text3, fontSize: 12, marginTop: 20 }}>No credit card · ₹299/mo Pro · ₹0 forever free tier</p>
+ </div>
+ </section>
 
-        <div className="max-w-[1200px] mx-auto pt-6 border-t border-[#CCCCCC]/20 flex flex-col md:flex-row items-center justify-between gap-4">
-          <span className="text-[0.78rem] text-[#BBBBCC]">© 2026 EduMesh. MIT License.</span>
-          <div className="flex items-center gap-4 text-[0.78rem] text-[#BBBBCC]">
-            <a href="#" className="hover:text-[#3A3C4A] transition-colors">Privacy</a>
-            <span>|</span>
-            <a href="#" className="hover:text-[#3A3C4A] transition-colors">Terms</a>
-          </div>
-        </div>
-      </footer>
-
-      <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes marquee {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
-      `}} />
-    </div>
-  );
-};
-
-export default Landing;
+ {/* Footer */}
+ <footer style={{ borderTop: `1px solid ${C.glassBorder}`, position: "relative", zIndex: 1, padding: "40px 2.5rem 32px", maxWidth: 1280, margin: "0 auto" }}>
+ <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16 }}>
+ <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+ <div style={{ width: 28, height: 28, borderRadius: 8, background: "linear-gradient(135deg, #4F46E5, #06B6D4)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>✦</div>
+ <span style={{ fontSize: 16, fontWeight: 700 }}>EduMesh</span>
+ </div>
+ <div style={{ display: "flex", gap: 24 }}>
+ {["Privacy", "Terms", "GitHub", "Twitter"].map(l => <Link key={l} to="#" className="nav-link" style={{ fontSize: 13 }}>{l}</Link>)}
+ </div>
+ <div style={{ fontSize: 12, color: C.text3 }}>© 2026 EduMesh. Built for India's students.</div>
+ </div>
+ </footer>
+ </div>
+ )
+}

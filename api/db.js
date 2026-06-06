@@ -7,9 +7,9 @@ import { ObjectId } from 'mongodb';
  * Safely convert an 'id' field to MongoDB '_id' (ObjectId).
  * If the id is not a valid ObjectId hex string, keep it as-is for local/fallback IDs.
  */
-function translateIdToObjectId(query) {
-  if (!query) return query;
-  const translated = { ...query };
+function translateIdToObjectId(obj) {
+  if (!obj) return obj;
+  const translated = { ...obj };
   
   if (translated.id) {
     try {
@@ -81,8 +81,8 @@ export default async function handler(req, res) {
         break;
       case 'insert':
         const securePayload = Array.isArray(payload) 
-          ? payload.map(p => ({...p, user_id: userId}))
-          : { ...payload, user_id: userId };
+          ? payload.map(p => translateIdToObjectId({...p, user_id: userId}))
+          : translateIdToObjectId({ ...payload, user_id: userId });
         result = Array.isArray(securePayload) ? await col.insertMany(securePayload) : await col.insertOne(securePayload);
         // Map _id to id to match Supabase schema patterns
         if (result.insertedId) {
