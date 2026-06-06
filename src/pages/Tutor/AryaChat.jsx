@@ -27,14 +27,13 @@ export default function AryaChat() {
  setLoading(true);
 
  try {
- addMessage('ai', '...');
  let prompt = userMsg;
  if (hinglishMode) prompt += " (Explain this clearly in Hinglish with Indian analogies).";
  
  const response = await sendAryaDoubt(prompt, subject);
- updateLastMessage(response);
+ addMessage('ai', response);
  } catch (error) {
- updateLastMessage("❌ I'm sorry, I encountered an error. Please try again.");
+ addMessage('ai', "❌ I'm sorry, I encountered an error. Please try again.");
  } finally {
  setLoading(false);
  }
